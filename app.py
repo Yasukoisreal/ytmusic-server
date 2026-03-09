@@ -28,7 +28,8 @@ def play_audio():
     ydl_opts = {
         'format': '140/18/best[ext=mp4]', # Chỉ lấy đích danh mã 140 (M4A) hoặc 18 (MP4) để không phải suy nghĩ tính toán
         'cookiefile': 'cookies.txt',
-        'extractor_args': {'youtube': {'client': ['tv', 'web']}}, # Ưu tiên TV trước vì dữ liệu TV nhẹ hơn Web
+        # Thử Android trước -> nếu tạch thì thử iOS -> tạch tiếp thử TV -> đường cùng mới xài Web
+        'extractor_args': {'youtube': {'client': ['android', 'ios', 'tv', 'web']}},
         'youtube_include_dash_manifest': False, # BỎ QUA TẢI DỮ LIỆU PHÂN MẢNH (Tiết kiệm 2-3 giây)
         'youtube_include_hls_manifest': False,  # BỎ QUA TẢI DỮ LIỆU LIVE STREAM (Tiết kiệm 1-2 giây)
         'noplaylist': True,
@@ -51,4 +52,5 @@ def play_audio():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
 
