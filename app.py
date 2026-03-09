@@ -24,14 +24,17 @@ def play_audio():
     youtube_url = f"https://www.youtube.com/watch?v={video_id}"
 
     # CÔNG THỨC ÉP BUỘC ĐỊNH DẠNG CHO WINDOWS PHONE 8.1
+   # CÔNG THỨC ÉP YOUTUBE "NHẢ" LINK SIÊU TỐC
     ydl_opts = {
-        'format': '140/bestaudio[ext=m4a]/18/best[ext=mp4]', 
-        'cookiefile': 'cookies.txt', # Đã có thẻ căn cước
-        'extractor_args': {'youtube': {'client': ['web', 'tv']}},
+        'format': '140/18/best[ext=mp4]', # Chỉ lấy đích danh mã 140 (M4A) hoặc 18 (MP4) để không phải suy nghĩ tính toán
+        'cookiefile': 'cookies.txt',
+        'extractor_args': {'youtube': {'client': ['tv', 'web']}}, # Ưu tiên TV trước vì dữ liệu TV nhẹ hơn Web
+        'youtube_include_dash_manifest': False, # BỎ QUA TẢI DỮ LIỆU PHÂN MẢNH (Tiết kiệm 2-3 giây)
+        'youtube_include_hls_manifest': False,  # BỎ QUA TẢI DỮ LIỆU LIVE STREAM (Tiết kiệm 1-2 giây)
         'noplaylist': True,
-        'quiet': False
+        'quiet': True,       # Tắt in log ra màn hình để server tập trung xử lý
+        'no_warnings': True  # Tắt các cảnh báo thừa
     }
-
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info_dict = ydl.extract_info(youtube_url, download=False)
@@ -48,3 +51,4 @@ def play_audio():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
