@@ -12,8 +12,9 @@ def play_audio():
 
     # Cấu hình tối ưu lấy luồng nhạc nhẹ nhất từ InnerTube
     ydl_opts = {
-        'format': '140/18/best',
+        'format': 'bestaudio/best',
         'cookiefile': 'cookies.txt',
+        'noplaylist': True,
         'quiet': True,
         'simulate': True,
         'extractor_args': {'youtube': {'player_client': ['android']}}
@@ -41,6 +42,7 @@ def play_audio():
 if __name__ == '__main__':
 
     app.run(host='0.0.0.0', port=8080)
+
 
 
 
