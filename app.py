@@ -12,7 +12,7 @@ def play_audio():
 
     # Cấu hình tối ưu lấy luồng nhạc nhẹ nhất từ InnerTube
     ydl_opts = {
-        'format': 'bestaudio[ext=m4a]/bestaudio/best',
+        'format': '140/m4a/bestaudio/best',
         'cookiefile': 'cookies.txt',
         'quiet': True,
         'simulate': True,
@@ -41,3 +41,4 @@ def play_audio():
 if __name__ == '__main__':
 
     app.run(host='0.0.0.0', port=8080)
+
