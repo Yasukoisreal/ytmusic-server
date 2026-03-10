@@ -7,7 +7,7 @@ import yt_dlp
 
 app = Flask(__name__)
 
-# TỐI ƯU 1: CACHE CHỐNG TRÀN RAM (RAM 512MB CỦA RAILWAY LUÔN AN TOÀN)
+# TỐI ƯU 1: CACHE CHỐNG TRÀN RAM 
 url_cache = TTLCache(maxsize=1000, ttl=7200)
 
 # TỐI ƯU 2: KHÓA BẢO MẬT CHỐNG XÀI CHÙA
@@ -21,7 +21,7 @@ if cookie_data:
 
 @app.route('/')
 def home():
-    return "🚀 API Railway (Bản Tối Thượng) đang hoạt động!"
+    return "🚀 API Railway (Bản Hoàn Thiện Tối Đa) đang hoạt động!"
 
 @app.route('/api/play')
 def play_audio():
@@ -34,7 +34,6 @@ def play_audio():
     if not video_id:
         return "Lỗi: Thiếu ID bài hát", 400
 
-    # Lấy link từ RAM siêu tốc nếu có
     if video_id in url_cache:
         print(f"⚡ [CACHE HIT] Lấy link bài {video_id} cực nhanh từ RAM!")
         return redirect(url_cache[video_id])
@@ -70,6 +69,5 @@ def play_audio():
         return f"🚨 Lỗi: {str(e)}", 500
 
 if __name__ == '__main__':
-    # Bắt Port động của Railway
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
