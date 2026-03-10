@@ -10,10 +10,7 @@ app = Flask(__name__)
 # TỐI ƯU 1: CACHE CHỐNG TRÀN RAM (RAM 512MB CỦA RAILWAY LUÔN AN TOÀN)
 url_cache = TTLCache(maxsize=1000, ttl=7200)
 
-# TỐI ƯU 2: KHÓA BẢO MẬT CHỐNG XÀI CHÙA
-SECRET_KEY = os.environ.get("APP_SECRET_KEY", "LumiaWP81-An")
-
-# TỐI ƯU 3: NẠP COOKIE CHỐNG GIỚI HẠN ĐỘ TUỔI
+# TỐI ƯU 2: NẠP COOKIE CHỐNG GIỚI HẠN ĐỘ TUỔI
 cookie_data = os.environ.get('COOKIE_DATA')
 if cookie_data:
     with open('cookies.txt', 'w', encoding='utf-8') as f:
@@ -21,15 +18,10 @@ if cookie_data:
 
 @app.route('/')
 def home():
-    return "🚀 API Railway (Bản Tối Thượng) đang hoạt động!"
+    return "🚀 API Railway (Bản Không Khóa) đang hoạt động!"
 
 @app.route('/api/play')
 def play_audio():
-    # Kiểm tra khóa bảo mật truyền qua URL (?key=...)
-    client_key = request.args.get("key")
-    if client_key != SECRET_KEY:
-        return jsonify({"error": "Unauthorized! Đi chỗ khác chơi!"}), 403
-
     video_id = request.args.get('v')
     if not video_id:
         return "Lỗi: Thiếu ID bài hát", 400
