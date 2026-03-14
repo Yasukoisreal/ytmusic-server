@@ -1,5 +1,4 @@
 import os
-import time
 import traceback
 import requests
 from flask import Flask, request, jsonify, Response
@@ -8,13 +7,9 @@ import yt_dlp
 
 app = Flask(__name__)
 
-# TỐI ƯU 1: CACHE CHỐNG TRÀN RAM
 url_cache = TTLCache(maxsize=1000, ttl=7200)
-
-# TỐI ƯU 2: KHÓA BẢO MẬT
 SECRET_KEY = os.environ.get("APP_SECRET_KEY", "LumiaWP81-An")
 
-# TỐI ƯU 3: NẠP COOKIE CHỐNG GIỚI HẠN VÀ VƯỢT VEVO
 cookie_data = os.environ.get('COOKIE_DATA')
 if cookie_data:
     with open('cookies.txt', 'w', encoding='utf-8') as f:
@@ -22,13 +17,13 @@ if cookie_data:
 
 @app.route('/')
 def home():
-    return "🚀 API Railway (Bản Cũ + Proxy Vevo) đang hoạt động!"
+    return "🚀 API Railway (Fix Buffering & Vevo) đang hoạt động!"
 
 @app.route('/api/play')
 def play_audio():
     client_key = request.args.get("key")
     if client_key != SECRET_KEY:
-        return jsonify({"error": "Unauthorized! Đi chỗ khác chơi!"}), 403
+        return jsonify({"error": "Unauthorized!"}), 403
 
     video_id = request.args.get('v')
     if not video_id:
@@ -40,7 +35,7 @@ def play_audio():
         youtube_url = f"https://www.youtube.com/watch?v={video_id}"
         ydl_opts = {
             'format': '140/bestaudio[ext=m4a]/18/best[ext=mp4]',
-            'extractor_args': {'youtube': {'client': ['tv', 'android_vr', 'ios']}}, # Đổi client chống Bot
+            'extractor_args': {'youtube': {'client': ['tv', 'android_vr', 'ios']}},
             'youtube_include_dash_manifest': False,
             'youtube_include_hls_manifest': False,
             'noplaylist': True,
@@ -62,7 +57,6 @@ def play_audio():
             traceback.print_exc()
             return f"🚨 Lỗi yt-dlp: {str(e)}", 500
 
-    # THAY THẾ REDIRECT BẰNG PROXY ĐỂ PHÁ KHÓA IP CỦA VEVO
     try:
         req_headers = {}
         if "Range" in request.headers:
@@ -75,18 +69,20 @@ def play_audio():
                 del url_cache[video_id]
             return "🚨 Bị khóa IP bởi Vevo. Đã xóa cache!", 403
 
-        def generate():
-            for chunk in r.iter_content(chunk_size=65536):
-                if chunk:
-                    yield chunk
-
+        # BÍ KÍP CHỐNG CHỜ LÂU: Ép truyền Content-Length chuẩn xác cho WP8.1
+        resp = Response(r.iter_content(chunk_size=65536), status=r.status_code)
+        
         excluded_headers = ['content-encoding', 'transfer-encoding', 'connection']
-        resp_headers = []
         for k, v in r.headers.items():
             if k.lower() not in excluded_headers:
-                resp_headers.append((k, v))
+                resp.headers[k] = v
                 
-        return Response(generate(), status=r.status_code, headers=resp_headers, direct_passthrough=True)
+        # Phải ép cứng bằng tay vì Flask hay tự động xóa mất cái này
+        if 'Content-Length' in r.headers:
+            resp.headers['Content-Length'] = r.headers['Content-Length']
+            
+        resp.direct_passthrough = True
+        return resp
 
     except Exception as e:
         traceback.print_exc()
