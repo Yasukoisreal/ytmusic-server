@@ -1,19 +1,20 @@
 import os
 import time
 import traceback
-from flask import Flask, request, redirect, jsonify
+import requests
+from flask import Flask, request, jsonify, Response
 from cachetools import TTLCache
 import yt_dlp
 
 app = Flask(__name__)
 
-# TỐI ƯU 1: CACHE CHỐNG TRÀN RAM (RAM 512MB CỦA RAILWAY LUÔN AN TOÀN)
+# TỐI ƯU 1: CACHE CHỐNG TRÀN RAM
 url_cache = TTLCache(maxsize=1000, ttl=7200)
 
-# TỐI ƯU 2: KHÓA BẢO MẬT CHỐNG XÀI CHÙA
+# TỐI ƯU 2: KHÓA BẢO MẬT
 SECRET_KEY = os.environ.get("APP_SECRET_KEY", "LumiaWP81-An")
 
-# TỐI ƯU 3: NẠP COOKIE CHỐNG GIỚI HẠN ĐỘ TUỔI
+# TỐI ƯU 3: NẠP COOKIE CHỐNG GIỚI HẠN VÀ VƯỢT VEVO
 cookie_data = os.environ.get('COOKIE_DATA')
 if cookie_data:
     with open('cookies.txt', 'w', encoding='utf-8') as f:
@@ -21,11 +22,10 @@ if cookie_data:
 
 @app.route('/')
 def home():
-    return "🚀 API Railway (Bản Tối Thượng) đang hoạt động!"
+    return "🚀 API Railway (Bản Cũ + Proxy Vevo) đang hoạt động!"
 
 @app.route('/api/play')
 def play_audio():
-    # Kiểm tra khóa bảo mật truyền qua URL (?key=...)
     client_key = request.args.get("key")
     if client_key != SECRET_KEY:
         return jsonify({"error": "Unauthorized! Đi chỗ khác chơi!"}), 403
@@ -34,42 +34,64 @@ def play_audio():
     if not video_id:
         return "Lỗi: Thiếu ID bài hát", 400
 
-    # Lấy link từ RAM siêu tốc nếu có
-    if video_id in url_cache:
-        print(f"⚡ [CACHE HIT] Lấy link bài {video_id} cực nhanh từ RAM!")
-        return redirect(url_cache[video_id])
+    audio_url = url_cache.get(video_id)
 
-    # YT-DLP GIẢ LẬP ĐIỆN THOẠI ĐỂ VƯỢT RÀO
-    youtube_url = f"https://www.youtube.com/watch?v={video_id}"
-    ydl_opts = {
-        'format': '140/bestaudio[ext=m4a]/18/best[ext=mp4]',
-        'extractor_args': {'youtube': {'client': ['android', 'ios', 'tv', 'web']}},
-        'youtube_include_dash_manifest': False,
-        'youtube_include_hls_manifest': False,
-        'noplaylist': True,
-        'quiet': True,
-        'no_warnings': True
-    }
-    
-    if os.path.exists('cookies.txt'):
-        ydl_opts['cookiefile'] = 'cookies.txt'
+    if not audio_url:
+        youtube_url = f"https://www.youtube.com/watch?v={video_id}"
+        ydl_opts = {
+            'format': '140/bestaudio[ext=m4a]/18/best[ext=mp4]',
+            'extractor_args': {'youtube': {'client': ['tv', 'android_vr', 'ios']}}, # Đổi client chống Bot
+            'youtube_include_dash_manifest': False,
+            'youtube_include_hls_manifest': False,
+            'noplaylist': True,
+            'quiet': True,
+            'no_warnings': True
+        }
+        
+        if os.path.exists('cookies.txt'):
+            ydl_opts['cookiefile'] = 'cookies.txt'
 
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info_dict = ydl.extract_info(youtube_url, download=False)
+                audio_url = info_dict.get('url')
+                if not audio_url:
+                    return "Không tìm thấy định dạng âm thanh.", 500
+                url_cache[video_id] = audio_url
+        except Exception as e:
+            traceback.print_exc()
+            return f"🚨 Lỗi yt-dlp: {str(e)}", 500
+
+    # THAY THẾ REDIRECT BẰNG PROXY ĐỂ PHÁ KHÓA IP CỦA VEVO
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info_dict = ydl.extract_info(youtube_url, download=False)
-            audio_url = info_dict.get('url')
+        req_headers = {}
+        if "Range" in request.headers:
+            req_headers["Range"] = request.headers["Range"]
+            
+        r = requests.get(audio_url, headers=req_headers, stream=True)
+        
+        if r.status_code in [403, 401]:
+            if video_id in url_cache:
+                del url_cache[video_id]
+            return "🚨 Bị khóa IP bởi Vevo. Đã xóa cache!", 403
 
-            if not audio_url:
-                return "Không tìm thấy định dạng âm thanh.", 500
+        def generate():
+            for chunk in r.iter_content(chunk_size=65536):
+                if chunk:
+                    yield chunk
 
-            url_cache[video_id] = audio_url
-            return redirect(audio_url)
+        excluded_headers = ['content-encoding', 'transfer-encoding', 'connection']
+        resp_headers = []
+        for k, v in r.headers.items():
+            if k.lower() not in excluded_headers:
+                resp_headers.append((k, v))
+                
+        return Response(generate(), status=r.status_code, headers=resp_headers, direct_passthrough=True)
 
     except Exception as e:
         traceback.print_exc()
-        return f"🚨 Lỗi: {str(e)}", 500
+        return f"🚨 Lỗi Stream: {str(e)}", 500
 
 if __name__ == '__main__':
-    # Bắt Port động của Railway
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
